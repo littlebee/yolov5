@@ -12,6 +12,24 @@ Usage:
     $ python path/to/train.py --data coco128.yaml --weights '' --cfg yolov5s.yaml --img 640  # from scratch
 """
 
+from yolov5.utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, torch_distributed_zero_first
+from yolov5.utils.plots import plot_evolve, plot_labels
+from yolov5.utils.metrics import fitness
+from yolov5.utils.loss import ComputeLoss
+from yolov5.utils.loggers.wandb.wandb_utils import check_wandb_resume
+from yolov5.utils.loggers import Loggers
+from yolov5.utils.general import (LOGGER, check_amp, check_dataset, check_file, check_git_status, check_img_size,
+                                  check_requirements, check_suffix, check_version, check_yaml, colorstr, get_latest_run,
+                                  increment_path, init_seeds, intersect_dicts, labels_to_class_weights,
+                                  labels_to_image_weights, methods, one_cycle, print_args, print_mutation, strip_optimizer)
+from yolov5.utils.downloads import attempt_download
+from yolov5.utils.dataloaders import create_dataloader
+from yolov5.utils.callbacks import Callbacks
+from yolov5.utils.autobatch import check_train_batch_size
+from yolov5.utils.autoanchor import check_anchors
+from yolov5.models.yolo import Model
+from yolov5.models.experimental import attempt_load
+import val  # for end-of-epoch mAP
 import argparse
 import math
 import os
@@ -37,24 +55,6 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-import val  # for end-of-epoch mAP
-from models.experimental import attempt_load
-from models.yolo import Model
-from utils.autoanchor import check_anchors
-from utils.autobatch import check_train_batch_size
-from utils.callbacks import Callbacks
-from utils.dataloaders import create_dataloader
-from utils.downloads import attempt_download
-from utils.general import (LOGGER, check_amp, check_dataset, check_file, check_git_status, check_img_size,
-                           check_requirements, check_suffix, check_version, check_yaml, colorstr, get_latest_run,
-                           increment_path, init_seeds, intersect_dicts, labels_to_class_weights,
-                           labels_to_image_weights, methods, one_cycle, print_args, print_mutation, strip_optimizer)
-from utils.loggers import Loggers
-from utils.loggers.wandb.wandb_utils import check_wandb_resume
-from utils.loss import ComputeLoss
-from utils.metrics import fitness
-from utils.plots import plot_evolve, plot_labels
-from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, torch_distributed_zero_first
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
@@ -177,7 +177,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if opt.cos_lr:
         lf = one_cycle(1, hyp['lrf'], epochs)  # cosine 1->hyp['lrf']
     else:
-        lf = lambda x: (1 - x / epochs) * (1.0 - hyp['lrf']) + hyp['lrf']  # linear
+        def lf(x): return (1 - x / epochs) * (1.0 - hyp['lrf']) + hyp['lrf']  # linear
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)  # plot_lr_scheduler(optimizer, scheduler, epochs)
 
     # EMA

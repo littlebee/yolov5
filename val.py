@@ -18,6 +18,15 @@ Usage - formats:
                                       yolov5s_edgetpu.tflite     # TensorFlow Edge TPU
 """
 
+from yolov5.utils.torch_utils import select_device, time_sync
+from yolov5.utils.plots import output_to_target, plot_images, plot_val_study
+from yolov5.utils.metrics import ConfusionMatrix, ap_per_class, box_iou
+from yolov5.utils.general import (LOGGER, check_dataset, check_img_size, check_requirements, check_yaml,
+                                  coco80_to_coco91_class, colorstr, emojis, increment_path, non_max_suppression, print_args,
+                                  scale_coords, xywh2xyxy, xyxy2xywh)
+from yolov5.utils.dataloaders import create_dataloader
+from yolov5.utils.callbacks import Callbacks
+from yolov5.models.common import DetectMultiBackend
 import argparse
 import json
 import os
@@ -33,16 +42,6 @@ ROOT = FILE.parents[0]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
-
-from models.common import DetectMultiBackend
-from utils.callbacks import Callbacks
-from utils.dataloaders import create_dataloader
-from utils.general import (LOGGER, check_dataset, check_img_size, check_requirements, check_yaml,
-                           coco80_to_coco91_class, colorstr, emojis, increment_path, non_max_suppression, print_args,
-                           scale_coords, xywh2xyxy, xyxy2xywh)
-from utils.metrics import ConfusionMatrix, ap_per_class, box_iou
-from utils.plots import output_to_target, plot_images, plot_val_study
-from utils.torch_utils import select_device, time_sync
 
 
 def save_one_txt(predn, save_conf, shape, file):
